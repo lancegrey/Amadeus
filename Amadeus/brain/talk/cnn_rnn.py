@@ -68,9 +68,8 @@ class TalkModel(object):
             dc_outs, dc_states = tf.nn.dynamic_rnn(cell=multi_rnn_cell, inputs=self.dc_input, initial_state=state, dtype=tf.float32)
             # tensor can not iter
             # dc_outs_stack = reduce(lambda x, y: tf.concat([x, y]), tf.transpose(dc_outs, [1,0,2]))
-            trans_dc_outs = tf.transpose(dc_outs, [1, 0, 2])
-            dc_outs_stack = 
-            in_num = int(x.shape[-1])
+            dc_outs_stack = tf.reshape(dc_outs, [-1, dc_outs.shape[-1]])
+            in_num = int(dc_outs.shape[-1])
             out_num = dictionary_size
             border = np.sqrt(6.0/(out_num + in_num))
             init_w = np.random.uniform(-border, border, [in_num, out_num])
@@ -80,15 +79,20 @@ class TalkModel(object):
             dc_outs = tf.matmul(dc_outs_stack, w) + b
             self.dc_outs, self.dc_states = dc_outs, dc_states
             # for generate
-            self.tdc_out, self.tdc_state = multi_rnn_cell(np.zeros([1, self.dense_hidden_nums[-1]], np.float32), state)
-            self.tdc_out = tf.matmul(dc_outs_stack, w) + b
+            self.tdc_input_state = []
+            for _ in range(self.decoder_layer_num):
+                self.tdc_input_state.append(tf.nn.rnn_cell.LSTMStateTuple(tf.placeholder(tf.float32, 
+                    shape=[None, self.dense_hidden_nums[-1]]), 
+                    tf.placeholder(tf.float32, shape=[None, self.dense_hidden_nums[-1]])))
+            self.tdc_out, self.tdc_state = multi_rnn_cell(self.dense_outputs, self.tdc_input_state)
+            self.tdc_out = tf.matmul(self.tdc_out, w) + b
             self.tdc_out = tf.nn.softmax(self.tdc_out)
 
         with tf.variable_scope("optimize"):
             # sample softmax loss
             #self.dc_label = tf.placeholder(tf.float32, [None, self.dense_hidden_nums[-1]])
-            self.dc_label = tf.placeholder(tf.float32, [None, 1])  # sample softmax
-            self.sample_loss = tf.nn.sampled_softmax_loss(w.T, b, self.dc_labels, dc_outs_stack, self.softmax_samples, dictionary_size)
+            self.dc_labels = tf.placeholder(tf.float32, [None, 1])  # sample softmax
+            self.sample_loss = tf.nn.sampled_softmax_loss(tf.transpose(w, [1, 0]), b, self.dc_labels, dc_outs_stack, self.soft_max_samples, dictionary_size)
             self.optimize_op =tf.train.AdamOptimizer(learning_rate=1e-2, beta1=0.9,beta2=0.999, epsilon=1e-08).minimize(self.sample_loss)
         self.init_op = tf.global_variables_initializer()
         
