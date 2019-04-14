@@ -1,7 +1,9 @@
 AMADEUS_DICTIONARY = "E:/PySpace/Amadeus/Amadeus/data/amadeus_dictionary.pkl"
-AMADEUS_TRAIN_DATA_TMP = "E:/PySpace/Amadeus/Amadeus/data/train_data_temp.pkl"
+AMADEUS_TRAIN_DATA_DIR = "E:/PySpace/Amadeus/Amadeus/data/formated_data/"
 AMADEUS_YULIAO = "E:/PySpace/Amadeus/Amadeus/data/yuliao/"
-AMADEUS_DEFAULT_DICTIONARY_NUM = 30000
+AMADEUS_JBDICT = "E:/PySpace/Amadeus/Amadeus/data/jb_dict.txt"
+AMADEUS_GENSIM_MODEL = "E:/PySpace/Amadeus/Amadeus/brain/w2v/gensim_model/word2vec_wx"
+AMADEUS_DEFAULT_DICTIONARY_NUM = 50000
 
 
 

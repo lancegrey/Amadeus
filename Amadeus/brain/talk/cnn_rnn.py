@@ -4,6 +4,7 @@
 
 import tensorflow as tf
 import numpy as np
+import Amadeus
 from functools import reduce
 
 
@@ -11,7 +12,7 @@ class TalkModel(object):
     """
     model
     """
-    def __init__(self, embadding_num=256, dictionary_size=5000):
+    def __init__(self, embadding_num=256, dictionary_size=50000):
         self.embadding_num = embadding_num
         # if sentence len is smaller than k, it's hard to use max-k pooling without padding;so k=1;
         # padding the sentence with zeros-vector before input to ensure that 
@@ -23,10 +24,6 @@ class TalkModel(object):
         self.decoder_layer_num = 1
         self.soft_max_samples = 256
         with tf.variable_scope("inputs_embadding_CNN_dense"):
-            # load w2v nn
-            pass
-            # add position info
-            pass
             # batch, sentence len, embadding size
             self.inputs = tf.placeholder(tf.float32, shape=[None, None, self.embadding_num, 1])
             # conv layer
@@ -93,7 +90,7 @@ class TalkModel(object):
             #self.dc_label = tf.placeholder(tf.float32, [None, self.dense_hidden_nums[-1]])
             self.dc_labels = tf.placeholder(tf.float32, [None, 1])  # sample softmax
             self.sample_loss = tf.nn.sampled_softmax_loss(tf.transpose(w, [1, 0]), b, self.dc_labels, dc_outs_stack, self.soft_max_samples, dictionary_size)
-            self.optimize_op =tf.train.AdamOptimizer(learning_rate=1e-2, beta1=0.9,beta2=0.999, epsilon=1e-08).minimize(self.sample_loss)
+            self.optimize_op = tf.train.AdamOptimizer(learning_rate=1e-2, beta1=0.9,beta2=0.999, epsilon=1e-08).minimize(self.sample_loss)
         self.init_op = tf.global_variables_initializer()
         
     def dense(self, x, out_num, activation, init=()):
@@ -114,10 +111,31 @@ class TalkModel(object):
         return sess
 
     def run_optimize(self, inputs, labels, sess):
-        pass
-            
+        ret = sess.run([self.optimize_op, self.sample_loss],
+                       feed_dict={self.inputs: inputs, self.dc_input: labels})
+        return ret
+
+
+def main():
+    import os
+    S2S = TalkModel()
+    sess = S2S.new_session()
+    inputs = Amadeus.AMADEUS_TRAIN_DATA_DIR
+    batch_size = 64
+    batch = {"data": [], "label": []}
+    for i in range(100):
+        for filename in os.listdir(inputs):
+            data = np.load(inputs+filename).item()
+            # print(data["data"])
+            for d, l in zip(data["data"], data["label"]):
+                batch["data"].append(d)
+                batch["label"].append(l)
+                if len(batch["data"]) >= batch_size - 1:
+                    _, loss = S2S.run_optimize(batch["data"], batch["label"], sess)
+                    print(loss)
+                    batch = {"data": [], "label": []}
+
 
 
 if __name__ == "__main__":
-    S2S = TalkModel()
-
+    main()

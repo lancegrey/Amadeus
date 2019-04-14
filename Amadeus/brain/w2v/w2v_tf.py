@@ -9,9 +9,9 @@ from Amadeus.data import yuliao_process
 
 
 class W2V(object):
-    def __init__(self, wordsnum=30000, n=4):
+    def __init__(self, wordsnum=Amadeus.AMADEUS_DEFAULT_DICTIONARY_NUM, n=4):
         # configure
-        self.wordsnum = wordsnum
+        self.wordsnum = wordsnum+1
         self.hiddennums = [512, 128]
         self.n = n
 
@@ -63,10 +63,27 @@ class W2V(object):
 
     def train(self, data, labels):
         feed_dict = {self.inputs: data, self.labels: labels}
-        return self.sess.run([self.train_op, self.loss], feed_dict=feed_dict)
+        return self.sess.run([self.train_op, self.loss, self.represent, self.outputs[0]], feed_dict=feed_dict)
 
-    def represent(self, data):
+    def get_represent(self, data, dict=None):
+        new_data = []
+        if dict is not None:
+            for word in data:
+                loc = dict.get(word, [-1])[0]
+                pa = np.zeros(addn)
+                if loc >= 0:
+                    pa[loc] = 1
+                new_data.append(pa)
+            data = new_data
         return self.sess.run(self.represent, feed_dict={self.inputs: data})
+
+    def cos(self, x, y, dict=None):
+        if dict is not None:
+            x = self.get_represent([x], dict)[0]
+            y = self.get_represent([y], dict)[0]
+        up = np.dot(x, y)
+        down = sum(x**2)**0.5 * sum(y**2)**0.5
+        return up/down
 
 
 if __name__ == "__main__":
@@ -78,13 +95,12 @@ if __name__ == "__main__":
 
     inputs = Amadeus.AMADEUS_YULIAO
     ws = Amadeus.brain.wordseg.base_wordseg.JiebaSeg()
-    data_save_path = Amadeus.AMADEUS_TRAIN_DATA_TMP
     n = 4
-    batch_size = 256
+    batch_size = 64
     w2v = W2V(n=n)
     data = []
     labels = [[] for _ in range(n)]
-    addn = Amadeus.AMADEUS_DEFAULT_DICTIONARY_NUM
+    addn = Amadeus.AMADEUS_DEFAULT_DICTIONARY_NUM+1
     for filename in os.listdir(inputs):
         try:
             with open(inputs + os.sep + filename, encoding="utf8") as f:
@@ -95,7 +111,7 @@ if __name__ == "__main__":
                         for word in ws.cut(l.strip()):
                             loc = DIC.get(word, [-1])[0]
                             pa = np.zeros(addn)
-                            if loc < 0:
+                            if loc >= 0:
                                 pa[loc] = 1
                             words.append(pa)
                         for i in range(len(words)):
@@ -110,7 +126,11 @@ if __name__ == "__main__":
                                 else:
                                     labels[n-j-1].append(words[i+j])
                     if len(data) >= batch_size:
-                        print(w2v.train(np.array(data), np.array(labels)))
+                        debugs = w2v.train(np.array(data), np.array(labels))
+                        print("loss: ", debugs[1])
+                        # print(debugs[2])
+                        print("sum: ", sum(sum(debugs[2])))
+                        print("cos: ", w2v.cos("喜欢", "喜爱", DIC))
                         data = []
                         labels = [[] for _ in range(n)]
         except Exception as e:
