@@ -5,6 +5,7 @@ import os
 import Amadeus
 import sys
 
+
 def form_yuliao():
     inputs = Amadeus.AMADEUS_YULIAO
     output = Amadeus.AMADEUS_DICTIONARY

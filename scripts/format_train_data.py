@@ -12,7 +12,7 @@ def s2v(line, dic, ws, w2v):
     # 转换成向量
     for word in ws.cut(line.strip()):
         word_vec = w2v.safe_get(word)
-        word_id = dic.get(word, -1)
+        word_id = dic.get(word, [-1, -1])[0]
         if word_vec is not None:
             words.append([word_vec, word_id])
     return words
@@ -46,8 +46,8 @@ def trans_data(inputs, dic, batch_size=1024, debug=False):
                         last_sentence = []
                         last_line = ""
                     if len(last_sentence) > 0:
-                        data["data"].append([x[0] for x in last_sentence])
-                        data["label"].append([x[1] for x in vectors])
+                        data["data"].append([x for x in last_sentence])
+                        data["label"].append([x for x in vectors])
                         if debug:
                             data["debug"].append([last_line, line])
                         batch_counter += 1
