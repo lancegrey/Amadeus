@@ -18,7 +18,7 @@ def s2v(line, dic, ws, w2v):
     return words
 
 
-def trans_data(inputs, dic, batch_size=1024, debug=False):
+def trans_data(inputs, dic, batch_size=4096, debug=False):
     """
     :param inputs: 语料文件
     :param batch_size: 打到一个输出文件的数据量，和train的batch size无关

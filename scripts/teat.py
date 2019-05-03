@@ -1,32 +1,27 @@
 # coding: utf-8
 import os
 import numpy as np
-import datetime
 import tensorflow as tf
 from Amadeus.brain.talk.seq2seq_attention import Seq2SeqAttentionModel
 import Amadeus
-import random
 
 
-def load_data(inputs, batch_size, max_len, start, end, pad, uk):
+def load_data(inputs, batch_size, start, end, pad, uk):
     batch = {"e_input": [], "d_label": [], "d_input": [], "e_size": [], "d_size": []}
     epoch = 0
     while True:
-        filenames = [i for i in os.listdir(inputs)]
-        random.shuffle(filenames)
-        for filename in filenames:
+        for filename in os.listdir(inputs):
             data = np.load(inputs+filename).item()
             for d, l in zip(data["data"], data["label"]):
                 ei = [dd[1] if dd[1] >= 0 else uk for dd in d]
                 di = [start] + [ll[1] if ll[1] >= 0 else uk for ll in l]
                 dl = [ll[1] if ll[1] >= 0 else uk for ll in l] + [end]
-                if len(di) < max_len and len(ei) < max_len:
-                    batch["e_size"].append(len(ei))
-                    batch["d_size"].append(len(di))
-                    batch["e_input"].append(ei)
-                    batch["d_input"].append(di)
-                    batch["d_label"].append(dl)
-                if len(batch["e_size"]) >= batch_size:
+                batch["e_size"].append(len(ei))
+                batch["d_size"].append(len(di))
+                batch["e_input"].append(ei)
+                batch["d_input"].append(di)
+                batch["d_label"].append(dl)
+                if len(batch["e_size"]) >= batch_size - 1:
                     # padding
                     max_e_len = np.max(batch["e_size"])
                     max_d_len = np.max(batch["d_size"])
@@ -39,7 +34,7 @@ def load_data(inputs, batch_size, max_len, start, end, pad, uk):
                              "d_input": [], "e_size": [], "d_size": []}
                     # debug
                     # print(batch["data"][0])
-                    # break
+                    break
         epoch += 1
 
 
@@ -55,7 +50,7 @@ def init_main(interface=False):
     decoder_vocab_size = Amadeus.AMADEUS_DEFAULT_DICTIONARY_NUM + 4
     embedding_dim = 256
     grad_clip = 5
-    max_step = 20
+    max_step = 50
     beam_width = 3
     with tf.device("/gpu:0"):
         with tf.variable_scope("s2s_model", reuse=None, initializer=initializer):
@@ -69,47 +64,40 @@ def init_main(interface=False):
     return S2S
 
 
-def main():
-    S2S = init_main()
-    init = tf.global_variables_initializer()
-    start, end, pad, uk, max_len = S2S.start, S2S.end, S2S.pad, S2S.uk, S2S.max_step
-    inputs = Amadeus.AMADEUS_TRAIN_DATA_DIR
-    batch_size = 32
-    data = load_data(inputs, batch_size, max_len, start, end, pad, uk)
-    log = open("E:\\PySpace\\Amadeus\\logs\\log.log", "w")
+def test(S2S, save_path, saver, batch):
+    with tf.Graph().as_default():
+        S2S = init_main(True)
+        print(tf.get_default_graph().collections)
+        with tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)) as sess:
+            model_file = tf.train.latest_checkpoint(save_path)
+            print("\n\n=========================================")
+            print(model_file)
+            saver.restore(sess, model_file)
+            print("Done")
+            ret = S2S.predict(sess, batch["e_input"], batch["e_size"])
+        return ret
 
+
+def main():
+    S2S = init_main(True)
+    init = tf.global_variables_initializer()
+    start, end, pad, uk = S2S.start, S2S.end, S2S.pad, S2S.uk
+    inputs = Amadeus.AMADEUS_TRAIN_DATA_DIR
+    batch_size = 1
+    data = load_data(inputs, batch_size, start, end, pad, uk)
     with tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)) as sess:
-        lr = 1e-2
-        save_name = "E:/PySpace/Amadeus/model/model"
+        lr = 1e-1
+        save_path = "E:/PySpace/Amadeus/model/"
         saver = tf.train.Saver(max_to_keep=3)
-        sess.run(init)
+        model_file = tf.train.latest_checkpoint(save_path)
+        saver.restore(sess, model_file)
+        # sess.run(init)
         step = 0
-        last_epoch = -1
         for epoch, batch in data:
-            ret = S2S.train(sess, batch["e_input"], batch["e_size"],
-                            batch["d_input"], batch["d_label"], batch["d_size"],
-                            lr=lr, kp=0.5)
-            loss, _ = ret
-            if loss < 1.0:
-                lr = 1e-4
-            elif loss < 2.0:
-                lr = 1e-3
-            if last_epoch != epoch:
-                saver.save(sess, save_name, global_step=step)
-                print(batch["d_label"][0])
-                ret = S2S.predict(sess, batch["e_input"], batch["e_size"])
-                print(ret[0][0][:6])
-                print(loss)
-                now = datetime.datetime.now()
-                log.write("======================\n")
-                log.write(str(now) + '\n')
-                log.write("loss:" + str(loss) + "\n")
-                log.write(str(batch["d_label"][0]) + '\n')
-                log.write(str(ret[0][0]) + '\n')
-                last_epoch = epoch
-            step += 1
-            print(step, ":", loss)
-    log.close()
+            ret = S2S.predict(sess, batch["e_input"], batch["e_size"])
+            print(ret[0][0][:6])
+
+
 
 
 if __name__ == "__main__":
