@@ -13,6 +13,7 @@ def load_data(inputs, batch_size, max_len, start, end, pad, uk):
     epoch = 0
     while True:
         filenames = [i for i in os.listdir(inputs)]
+        # random 文件
         random.shuffle(filenames)
         for filename in filenames:
             data = np.load(inputs+filename).item()
