@@ -34,7 +34,7 @@ def load_data(inputs, batch_size, start, end, pad, uk):
                              "d_input": [], "e_size": [], "d_size": []}
                     # debug
                     # print(batch["data"][0])
-                    break
+                    # break
         epoch += 1
 
 
@@ -96,8 +96,6 @@ def main():
         for epoch, batch in data:
             ret = S2S.predict(sess, batch["e_input"], batch["e_size"])
             print(ret[0][0][:6])
-
-
 
 
 if __name__ == "__main__":

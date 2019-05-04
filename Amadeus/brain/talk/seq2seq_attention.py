@@ -1,8 +1,6 @@
 # coding: utf-8
 import tensorflow as tf
-import numpy as np
 from tensorflow.contrib.seq2seq import TrainingHelper
-from tensorflow.contrib.seq2seq import GreedyEmbeddingHelper
 from tensorflow.contrib.seq2seq import BeamSearchDecoder
 from tensorflow.contrib.seq2seq import dynamic_decode
 from tensorflow.contrib.seq2seq import BasicDecoder
@@ -70,14 +68,14 @@ class Seq2SeqAttentionModel(object):
 
     def forward(self, e_input, e_size, d_input, d_label, d_size, keep_prob, learning_rate):
         batch_size = tf.shape(e_input)[0]
-        # 将输入和输出单词编号转为词向量。
+
         e_emb = tf.nn.embedding_lookup(self.encoder_embedding, e_input)
         d_emb = tf.nn.embedding_lookup(self.decoder_embedding, d_input)
-        # 在词向量上进行dropout。
+
         e_emb = tf.nn.dropout(e_emb, keep_prob)
         d_emb = tf.nn.dropout(d_emb, keep_prob)
 
-        # outputs是最后一层每个step的输出 [batch_size，step，HIDDEN_SIZE]
+        # outputs是最后一层每个step的输出
         # states是每一层最后step的输出
         with tf.variable_scope("encoder"):
             enc_outputs, enc_state = tf.nn.bidirectional_dynamic_rnn(
@@ -97,17 +95,15 @@ class Seq2SeqAttentionModel(object):
 
             init_state = attention_cell.zero_state(self.dec_batch_size, tf.float32)\
                 .clone(cell_state=enc_state)
-            # print(d_emb)
             train_helper = TrainingHelper(d_emb, self.dec_size, time_major=False)
             train_decoder = BasicDecoder(attention_cell, train_helper, init_state, self.dense_before_softmax)
             dec_outputs, _, _ = dynamic_decode(train_decoder, impute_finished=True)
             dec_outputs = tf.identity(dec_outputs.rnn_output)
             logits = tf.reshape(dec_outputs, [-1, self.decoder_vocab_size])
-            # logits = self.dense_before_softmax(output)
             prob = tf.nn.softmax(logits)
             loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
                     labels=tf.reshape(d_label, [-1]), logits=logits)
-            # 在计算平均损失时，需要将填充位置的权重设置为0
+
             label_weights = tf.sequence_mask(d_size, maxlen=tf.shape(d_label)[1], dtype=tf.float32)
             label_weights = tf.reshape(label_weights, [-1])
             loss = tf.reduce_sum(loss * label_weights)   # 线性计算不影响梯度方向
