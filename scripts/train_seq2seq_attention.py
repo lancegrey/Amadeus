@@ -61,12 +61,12 @@ def init_main(interface=False):
     with tf.device("/gpu:0"):
         with tf.variable_scope("s2s_model", reuse=None, initializer=initializer):
             S2S = Seq2SeqAttentionModel(rnn_size, layer_size,
-                                    encoder_vocab_size, decoder_vocab_size,
-                                    embedding_dim,
-                                    grad_clip,
-                                    start, end, pad, uk, max_step,
-                                    beam_width,
-                                    interface=interface)
+                                        encoder_vocab_size, decoder_vocab_size,
+                                        embedding_dim,
+                                        grad_clip,
+                                        start, end, pad, uk, max_step,
+                                        beam_width,
+                                        interface=interface)
     return S2S
 
 
@@ -91,10 +91,10 @@ def main():
 
     with tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)) as sess:
         lr = 1e-3
-        save_name = "E:/PySpace/Amadeus/model_continue/model"
-        save_path = "E:/PySpace/Amadeus/model_continue/"
+        save_name = "E:/PySpace/Amadeus/model/model"
+        save_path = "E:/PySpace/Amadeus/model/"
         saver = tf.train.Saver(max_to_keep=3)
-        init_func(sess, saver, init, save_path, load=True)
+        init_func(sess, saver, init, save_path, load=False)
         step = 0
         epoch_loss = 0.
         epoch_step = 1e-10

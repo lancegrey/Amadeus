@@ -1,6 +1,7 @@
 # coding: utf-8
 import os
 import numpy as np
+import random
 import Amadeus
 from Amadeus.brain import dictionary
 from Amadeus.data.yuliao_process import tail_name_func
@@ -18,7 +19,7 @@ def s2v(line, dic, ws, w2v):
     return words
 
 
-def trans_data(inputs, dic, batch_size=4096, debug=False):
+def trans_data(inputs, dic, batch_size=8192, debug=False):
     """
     :param inputs: 语料文件
     :param batch_size: 打到一个输出文件的数据量，和train的batch size无关
@@ -52,6 +53,9 @@ def trans_data(inputs, dic, batch_size=4096, debug=False):
                             data["debug"].append([last_line, line])
                         batch_counter += 1
                         if batch_counter >= batch_size - 1:
+                            shuffle = list(zip(data["data"], data["label"]))
+                            random.shuffle(shuffle)
+                            data = {"data": [x[0] for x in shuffle], "label": [x[1] for x in shuffle]}
                             yield data
                             data = {"data": [], "label": []}
                             if debug:
