@@ -3,7 +3,10 @@ import threading
 import time
 import socket
 import json
+import random
 import datetime
+from Amadeus.brain.talk import ann
+from Amadeus.brain.talk import Logic_rape
 from server import load_conf
 
 
@@ -18,16 +21,31 @@ class WxServer(object):
         self.batch_size = load_conf.load_wx_batch()
         self.amadeus_ip, self.amadeus_port = load_conf.load_amadeus_ip_port()
         self.buffer_size = load_conf.load_amadeus_recv_buffer_size()
+        self.ann = ann.AnnoySearch()
+        self.logic_rape = Logic_rape.LogicRape()
         # trick, but useful
         self.collection_func = lambda msg: self.text_collection(msg)
         itchat.msg_register(itchat.content.TEXT)(self.collection_func)
 
     def text_collection(self, msg):
         self.response_sig.acquire()
-        self.collection.append(msg)
-        if len(self.collection) >= self.batch_size:
-            self.s_for_wait = self.wait_time
-            self.response()
+        text = msg['Text']
+        pre_ask_amadeus = []
+        pre_ask_amadeus += self.logic_rape.search(text)
+        if len(pre_ask_amadeus) < 1:
+            ann_answer = self.ann.search(text)
+            if ann_answer[1] < 1:
+                pre_ask_amadeus += ann_answer[2]
+        if len(pre_ask_amadeus) >= 1:
+            choose = random.choice(pre_ask_amadeus)
+            print(pre_ask_amadeus)
+            print(choose)
+            msg.user.send(choose)
+        else:
+            self.collection.append(msg)
+            if len(self.collection) >= self.batch_size:
+                self.s_for_wait = self.wait_time
+                self.response()
         self.response_sig.release()
 
     def wait(self):
@@ -44,8 +62,7 @@ class WxServer(object):
     def response(self):
         data = []
         for msg in self.collection:
-            if msg['FromUserName'] != "":
-                data.append(msg['Text'])
+            data.append(msg['Text'])
         if len(data) > 0:
             data = json.dumps(data)
             ret = self.ask(data)

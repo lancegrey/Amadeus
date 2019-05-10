@@ -12,14 +12,15 @@ def s2v(line, dic, ws, w2v):
     words = []
     # 转换成向量
     for word in ws.cut(line.strip()):
-        word_vec = w2v.safe_get(word)
+        #word_vec = w2v.safe_get(word)
+        word_vec = [0]
         word_id = dic.get(word, [-1, -1])[0]
         if word_vec is not None:
             words.append([word_vec, word_id])
     return words
 
 
-def trans_data(inputs, dic, batch_size=8192, debug=False):
+def trans_data(inputs, dic, batch_size=131072, debug=False):
     """
     :param inputs: 语料文件
     :param batch_size: 打到一个输出文件的数据量，和train的batch size无关
