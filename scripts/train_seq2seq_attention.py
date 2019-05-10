@@ -4,6 +4,7 @@ import numpy as np
 import datetime
 import tensorflow as tf
 from Amadeus.brain.talk.seq2seq_attention import Seq2SeqAttentionModel
+from Amadeus.brain import dictionary
 import Amadeus
 import random
 
@@ -44,20 +45,24 @@ def load_data(inputs, batch_size, max_len, start, end, pad, uk):
         epoch += 1
 
 
-def init_main(interface=False):
+def init_main(interface=False, beam_width=3):
     initializer = tf.random_uniform_initializer(-0.05, 0.05)
     rnn_size = 256
     layer_size = 2
+    DIC = dictionary.Dictionary()
+    DIC.read_from_file(Amadeus.AMADEUS_DICTIONARY)
+    Amadeus.AMADEUS_DEFAULT_DICTIONARY_NUM = min([Amadeus.AMADEUS_DEFAULT_DICTIONARY_NUM, len(DIC)])
     start = Amadeus.AMADEUS_DEFAULT_DICTIONARY_NUM
     end = Amadeus.AMADEUS_DEFAULT_DICTIONARY_NUM + 1
     pad = Amadeus.AMADEUS_DEFAULT_DICTIONARY_NUM + 2
     uk = Amadeus.AMADEUS_DEFAULT_DICTIONARY_NUM + 3
     encoder_vocab_size = Amadeus.AMADEUS_DEFAULT_DICTIONARY_NUM + 4
     decoder_vocab_size = Amadeus.AMADEUS_DEFAULT_DICTIONARY_NUM + 4
+    print(encoder_vocab_size)
     embedding_dim = 256
     grad_clip = 5
-    max_step = 20
-    beam_width = 3
+    max_step = 35
+    beam_width = beam_width
     with tf.device("/gpu:0"):
         with tf.variable_scope("s2s_model", reuse=None, initializer=initializer):
             S2S = Seq2SeqAttentionModel(rnn_size, layer_size,
@@ -90,10 +95,10 @@ def main():
     data = load_data(inputs, batch_size, max_len, start, end, pad, uk)
 
     with tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)) as sess:
-        lr = 1e-3
+        lr = 1e-2
         save_name = "E:/PySpace/Amadeus/model/model"
         save_path = "E:/PySpace/Amadeus/model/"
-        saver = tf.train.Saver(max_to_keep=3)
+        saver = tf.train.Saver(max_to_keep=20)
         init_func(sess, saver, init, save_path, load=False)
         step = 0
         epoch_loss = 0.
@@ -105,10 +110,6 @@ def main():
                             lr=lr, kp=0.5)
             loss, _ = ret
             epoch_loss += loss
-            if loss < 1.0:
-                lr = 1e-5
-            elif loss < 2.0:
-                lr = 1e-4
             if last_epoch != epoch:
                 print("==========================")
                 print(batch["d_label"][0])
@@ -116,6 +117,10 @@ def main():
                 print(ret[0][0][:len(batch["d_label"][0])])
                 print(loss)
                 print(epoch_loss / epoch_step)
+                if epoch_loss / epoch_step < 1.0:
+                    lr = 1e-4
+                elif epoch_loss / epoch_step < 4.3:
+                    lr = 1e-3
                 now = datetime.datetime.now()
                 log = open("E:\\PySpace\\Amadeus\\logs\\log.log", "a")
                 log.write("======================\n")

@@ -27,7 +27,8 @@ def trans_data(inputs, dic, batch_size=8192, debug=False):
     :return:
     """
     w2v = W2V()
-    ws = Amadeus.brain.wordseg.base_wordseg.JiebaSeg()
+    #ws = Amadeus.brain.wordseg.base_wordseg.JiebaSeg()
+    ws = Amadeus.brain.wordseg.base_wordseg.ZSeg()
     data = {"data": [], "label": []}
     if debug:
         data["debug"] = []

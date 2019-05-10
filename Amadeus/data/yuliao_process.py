@@ -2,6 +2,8 @@
 # prepreocess conv
 
 import sys
+import csv
+
 
 def preprocess_conv(f):
     ret = []
@@ -15,6 +17,14 @@ def preprocess_conv(f):
 
     # E as an ending
     # pass
+
+
+def preprocess_qingyun(f):
+    for line in f.readlines():
+        conv = line.strip().split("|")
+        conv = [x.strip() for x in conv]
+        yield conv
+
 
 def preprocess_qa(f):
     ret = []
@@ -45,8 +55,11 @@ def preprocess_unknown(f):
 tail_name_func = {
     "conv": preprocess_conv,
     "qa": preprocess_qa,
+    "qingyun": preprocess_qingyun
 }
 
 
 if __name__ == "__main__":
-    pass
+    f = open("E:\PySpace\Amadeus\Amadeus\data\yuliao\qingyun.qingyun", encoding="utf-8")
+    for x in preprocess_qingyun(f):
+        print(x)

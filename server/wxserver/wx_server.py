@@ -53,15 +53,16 @@ class WxServer(object):
         else:
             ret = []
         for msg, ans in zip(self.collection, ret):
+            ans = "\n".join(ans)
             msg.user.send(ans)
         self.collection = []
 
     def ask(self, data):
-        host, port = self
+        host, port = self.amadeus_ip, server.amadeus_port
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((host, port))
-        sock.sendall(data)
-        return sock.recv(self.buffer_size)
+        sock.sendall(data.encode())
+        return sock.recv(self.buffer_size).decode()
 
 
 class WxWait(threading.Thread):

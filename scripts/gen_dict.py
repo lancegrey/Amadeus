@@ -11,7 +11,8 @@ def form_yuliao():
     output = Amadeus.AMADEUS_DICTIONARY
     topx = Amadeus.AMADEUS_DEFAULT_DICTIONARY_NUM
     d = Amadeus.brain.dictionary.Dictionary()
-    ws = Amadeus.brain.wordseg.base_wordseg.JiebaSeg()
+    #ws = Amadeus.brain.wordseg.base_wordseg.JiebaSeg()
+    ws = Amadeus.brain.wordseg.base_wordseg.ZSeg()
     for filename in os.listdir(inputs):
         print(filename + " start.")
         try:
@@ -29,6 +30,7 @@ def form_yuliao():
         print(filename + " done.")
     print("Wordseg has done.Now sort top " + str(topx))
     topkeys = sorted(d.keys(), key=lambda x: d[x], reverse=True)[:topx]
+    print(len(d.keys()), len(topkeys))
     # del more than new
     newd = Amadeus.brain.dictionary.Dictionary()
     for i, k in enumerate(topkeys):
@@ -45,7 +47,7 @@ def form_jb_dic():
             word, tf, e = line.strip().split(" ")
             d[word] = int(tf)
     topkeys = sorted(d.keys(), key=lambda x: d[x], reverse=True)[:topx]
-    print(len(topkeys))
+    print(len(d.keys()), len(topkeys))
     print("\n".join(topkeys[0:100]))
     # del more than new
     newd = Amadeus.brain.dictionary.Dictionary()
@@ -55,4 +57,5 @@ def form_jb_dic():
 
 
 if __name__ == "__main__":
-    form_jb_dic()
+    #form_jb_dic()
+    form_yuliao()

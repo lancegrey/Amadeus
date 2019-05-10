@@ -20,13 +20,15 @@ class W2V(object):
         else:
             return self[item]
 
-    def cos(self, x, y):
+    def cos_str(self, x, y):
         x = self[x]
         y = self[y]
+        return self.cos(x, y)
+
+    def cos(self, x, y):
         up = np.dot(x, y)
         down = sum(x**2)**0.5 * sum(y**2)**0.5
         return up/down
-
 
 if __name__ == "__main__":
     w2v = W2V()
@@ -39,9 +41,10 @@ if __name__ == "__main__":
             ["爱", "喜欢"],
             ["爱", "死亡"],
             ["AI", "机器学习"],
-            ["AI", "连续剧"]]
+            ["AI", "连续剧"],
+            ["没", "赵"]]
 
     for t in test:
-        print(*t, w2v.cos(*t))
+        print(*t, w2v.cos_str(*t))
         # print("cos: ", w2v.cos(*t))
 
