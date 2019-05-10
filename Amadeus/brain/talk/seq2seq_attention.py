@@ -4,6 +4,7 @@ from tensorflow.contrib.seq2seq import TrainingHelper
 from tensorflow.contrib.seq2seq import BeamSearchDecoder
 from tensorflow.contrib.seq2seq import dynamic_decode
 from tensorflow.contrib.seq2seq import BasicDecoder
+from tensorflow.python.ops import array_ops
 from tensorflow.python.util import nest
 
 
@@ -38,10 +39,13 @@ class Seq2SeqAttentionModel(object):
         self.dec_batch_inputs = tf.ones(self.dec_batch_size, dtype=tf.int32, name="dec_batch_inputs") * self.start
 
         self.dec_cell = tf.nn.rnn_cell.MultiRNNCell(
-            [tf.nn.rnn_cell.BasicLSTMCell(rnn_size) for _ in range(layer_size)])
-        self.enc_cell_fw = tf.nn.rnn_cell.BasicLSTMCell(rnn_size)
-        self.enc_cell_bw = tf.nn.rnn_cell.BasicLSTMCell(rnn_size)
-
+            [tf.nn.rnn_cell.ResidualWrapper(tf.nn.rnn_cell.BasicLSTMCell(rnn_size)) for _ in range(layer_size)])
+        self.enc_cell_fw = tf.nn.rnn_cell.ResidualWrapper(tf.nn.rnn_cell.BasicLSTMCell(rnn_size))
+        self.enc_cell_bw = tf.nn.rnn_cell.ResidualWrapper(tf.nn.rnn_cell.BasicLSTMCell(rnn_size))
+        self.attn_projection = tf.layers.Dense(self.rnn_size,
+                                               dtype=tf.float32,
+                                               use_bias=False,
+                                               name='attention_cell_input_fn')
         # 词向量
         self.encoder_embedding = tf.get_variable(
             "e_emb", [encoder_vocab_size, embedding_dim])
@@ -66,6 +70,11 @@ class Seq2SeqAttentionModel(object):
             self.avg_loss = avg_loss
             self.train_op = train_op
 
+
+    def cell_input_fn(self, inputs, attention):
+                return self.attn_projection(array_ops.concat([inputs, attention], -1))
+
+
     def forward(self, e_input, e_size, d_input, d_label, d_size, keep_prob, learning_rate):
         batch_size = tf.shape(e_input)[0]
 
@@ -89,9 +98,13 @@ class Seq2SeqAttentionModel(object):
             attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(
                 self.rnn_size, enc_outputs,
                 memory_sequence_length=e_size)  # memory_sequence_length 豁免padding
+
+
+
             attention_cell = tf.contrib.seq2seq.AttentionWrapper(
                 self.dec_cell, attention_mechanism,
-                attention_layer_size=self.rnn_size)
+                attention_layer_size=self.rnn_size,
+                cell_input_fn=self.cell_input_fn)
 
             init_state = attention_cell.zero_state(self.dec_batch_size, tf.float32)\
                 .clone(cell_state=enc_state)
@@ -156,7 +169,8 @@ class Seq2SeqAttentionModel(object):
                 memory_sequence_length=e_size)
         attention_cell = tf.contrib.seq2seq.AttentionWrapper(
                 self.dec_cell, attention_mechanism,
-                attention_layer_size=self.embedding_dim)
+                attention_layer_size=self.embedding_dim,
+                cell_input_fn=self.cell_input_fn)
         init_state = attention_cell.zero_state(self.dec_batch_size*self.beam_width, tf.float32)\
                      .clone(cell_state=enc_state)
         beamsearch = BeamSearchDecoder(attention_cell, self.decoder_embedding, batch_starts,

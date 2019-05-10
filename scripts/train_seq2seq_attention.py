@@ -18,7 +18,9 @@ def load_data(inputs, batch_size, max_len, start, end, pad, uk):
         random.shuffle(filenames)
         for filename in filenames:
             data = np.load(inputs+filename).item()
-            for d, l in zip(data["data"], data["label"]):
+            new_data = list(zip(data["data"], data["label"]))
+            random.shuffle(new_data)
+            for d, l in new_data:
                 ei = [dd[1] if dd[1] >= 0 else uk for dd in d]
                 di = [start] + [ll[1] if ll[1] >= 0 else uk for ll in l]
                 dl = [ll[1] if ll[1] >= 0 else uk for ll in l] + [end]
