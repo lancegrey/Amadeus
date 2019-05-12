@@ -39,9 +39,9 @@ class Seq2SeqAttentionModel(object):
         self.dec_batch_inputs = tf.ones(self.dec_batch_size, dtype=tf.int32, name="dec_batch_inputs") * self.start
 
         self.dec_cell = tf.nn.rnn_cell.MultiRNNCell(
-            [tf.nn.rnn_cell.ResidualWrapper(tf.nn.rnn_cell.BasicLSTMCell(rnn_size)) for _ in range(layer_size)])
-        self.enc_cell_fw = tf.nn.rnn_cell.ResidualWrapper(tf.nn.rnn_cell.BasicLSTMCell(rnn_size))
-        self.enc_cell_bw = tf.nn.rnn_cell.ResidualWrapper(tf.nn.rnn_cell.BasicLSTMCell(rnn_size))
+            [tf.nn.rnn_cell.ResidualWrapper(tf.nn.rnn_cell.DropoutWrapper(tf.nn.rnn_cell.BasicLSTMCell(rnn_size), output_keep_prob=self.keep_prob)) for _ in range(layer_size)])
+        self.enc_cell_fw = tf.nn.rnn_cell.ResidualWrapper(tf.nn.rnn_cell.DropoutWrapper(tf.nn.rnn_cell.BasicLSTMCell(rnn_size), output_keep_prob=self.keep_prob))
+        self.enc_cell_bw = tf.nn.rnn_cell.ResidualWrapper(tf.nn.rnn_cell.DropoutWrapper(tf.nn.rnn_cell.BasicLSTMCell(rnn_size), output_keep_prob=self.keep_prob))
         self.attn_projection = tf.layers.Dense(self.rnn_size,
                                                dtype=tf.float32,
                                                use_bias=False,
@@ -49,8 +49,11 @@ class Seq2SeqAttentionModel(object):
         # 词向量
         self.encoder_embedding = tf.get_variable(
             "e_emb", [encoder_vocab_size, embedding_dim])
-        self.decoder_embedding = tf.get_variable(
-            "d_emb", [decoder_vocab_size, embedding_dim])
+        if False:
+            self.decoder_embedding = self.encoder_embedding
+        else:
+            self.decoder_embedding = tf.get_variable(
+                "d_emb", [decoder_vocab_size, embedding_dim])
 
         # 定义softmax层的变量
         self.dense_before_softmax = tf.layers.Dense(decoder_vocab_size)
@@ -63,17 +66,17 @@ class Seq2SeqAttentionModel(object):
                                self.dec_size,
                                self.keep_prob,
                                self.learning_rate)
-            prob, beam_outputs, avg_loss, train_op = ret
+            prob, beam_outputs, avg_loss, train_op, debug_enc_state, logits = ret
 
             self.train_prob = prob
             self.beam_outputs = beam_outputs
             self.avg_loss = avg_loss
             self.train_op = train_op
-
+            self.debug_enc_state = debug_enc_state
+            self.logits = logits
 
     def cell_input_fn(self, inputs, attention):
                 return self.attn_projection(array_ops.concat([inputs, attention], -1))
-
 
     def forward(self, e_input, e_size, d_input, d_label, d_size, keep_prob, learning_rate):
         batch_size = tf.shape(e_input)[0]
@@ -81,8 +84,8 @@ class Seq2SeqAttentionModel(object):
         e_emb = tf.nn.embedding_lookup(self.encoder_embedding, e_input)
         d_emb = tf.nn.embedding_lookup(self.decoder_embedding, d_input)
 
-        e_emb = tf.nn.dropout(e_emb, keep_prob)
-        d_emb = tf.nn.dropout(d_emb, keep_prob)
+        #e_emb = tf.nn.dropout(e_emb, keep_prob)
+        #d_emb = tf.nn.dropout(d_emb, keep_prob)
 
         # outputs是最后一层每个step的输出
         # states是每一层最后step的输出
@@ -90,6 +93,7 @@ class Seq2SeqAttentionModel(object):
             enc_outputs, enc_state = tf.nn.bidirectional_dynamic_rnn(
                 self.enc_cell_fw, self.enc_cell_bw, e_emb, e_size, dtype=tf.float32)
             enc_outputs = tf.concat([enc_outputs[0], enc_outputs[1]], -1)
+            debug_enc_state = enc_state
 
         # 构造解码器
         # if not self.interface:
@@ -136,7 +140,7 @@ class Seq2SeqAttentionModel(object):
             #prob = None
             #avg_loss = None
             #train_op = None
-        return prob, beamsearch_outs, avg_loss, train_op
+        return prob, beamsearch_outs, avg_loss, train_op, debug_enc_state, dec_outputs
 
     def train(self, sess, enc_input, enc_size, dec_input, dec_label, dec_size, lr, kp):
         feed_dict = {self.enc_input: enc_input,
@@ -147,7 +151,7 @@ class Seq2SeqAttentionModel(object):
                      self.learning_rate: lr,
                      self.keep_prob: kp,
                      self.dec_batch_size: len(enc_size)}
-        ret = sess.run([self.avg_loss, self.train_op], feed_dict=feed_dict)
+        ret = sess.run([self.avg_loss, self.train_op, self.logits], feed_dict=feed_dict)
         return ret
 
     def predict(self, sess, enc_input, enc_size):

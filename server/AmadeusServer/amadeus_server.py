@@ -19,8 +19,8 @@ class BaseAmadeusServer(object):
         self.dic = dictionary.Dictionary()
         self.dic.read_from_file(Amadeus.AMADEUS_DICTIONARY)
         self.reserve_dic = {v[0]: k for k, v in self.dic.items()}
-        #self.wordseg = JiebaSeg()
-        self.wordseg = ZSeg()
+        self.wordseg = JiebaSeg()
+        #self.wordseg = ZSeg()
 
     def predict(self, inputs):
         data = []
@@ -94,4 +94,3 @@ class AmadeusServer(BaseAmadeusServer):
 if __name__ == "__main__":
     server = AmadeusServer()
     server.service()
-

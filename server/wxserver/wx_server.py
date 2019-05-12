@@ -4,14 +4,13 @@ import time
 import socket
 import json
 import random
-import datetime
-from Amadeus.brain.talk import ann
-from Amadeus.brain.talk import Logic_rape
 from server import load_conf
 
 
 class WxServer(object):
     def __init__(self):
+        self.debug = False
+        self.silent = False
         self.response_sig = threading.Semaphore(1)
         self.replying = False
         self.collection = []
@@ -19,27 +18,33 @@ class WxServer(object):
         self.s_for_wait = self.wait_time
         self.wait_unit = load_conf.load_wx_wait_unit()
         self.batch_size = load_conf.load_wx_batch()
-        self.amadeus_ip, self.amadeus_port = load_conf.load_amadeus_ip_port()
-        self.buffer_size = load_conf.load_amadeus_recv_buffer_size()
-        self.ann = ann.AnnoySearch()
-        self.logic_rape = Logic_rape.LogicRape()
         # trick, but useful
         self.collection_func = lambda msg: self.text_collection(msg)
         itchat.msg_register(itchat.content.TEXT)(self.collection_func)
 
     def text_collection(self, msg):
         self.response_sig.acquire()
+        if msg.fromUserName == "filehelper":
+            self.control(msg["text"])
+        if self.silent:
+            self.response_sig.release()
+            return
         text = msg['Text']
-        pre_ask_amadeus = []
-        pre_ask_amadeus += self.logic_rape.search(text)
-        if len(pre_ask_amadeus) < 1:
-            ann_answer = self.ann.search(text)
-            if ann_answer[1] < 1:
-                pre_ask_amadeus += ann_answer[2]
-        if len(pre_ask_amadeus) >= 1:
-            choose = random.choice(pre_ask_amadeus)
-            print(pre_ask_amadeus)
+        pre_ask_amadeus = json.loads(self.search(text))
+        values = []
+        if pre_ask_amadeus["type"] == "annoy":
+            if len(pre_ask_amadeus["value"]) > 0:
+                if float(pre_ask_amadeus["value"][1]) < 0.8:
+                    values = pre_ask_amadeus["value"][2]
+        else:
+            values = pre_ask_amadeus["value"]
+        if len(values) >= 1:
+            choose = random.choice(values)
+            print(values)
             print(choose)
+            if self.debug:
+                out_type = pre_ask_amadeus["type"]
+                choose = choose + "\ndebug-info: " + out_type
             msg.user.send(choose)
         else:
             self.collection.append(msg)
@@ -70,16 +75,33 @@ class WxServer(object):
         else:
             ret = []
         for msg, ans in zip(self.collection, ret):
-            ans = "\n".join(ans)
+            ans = "\n".join(ans) + "\ndebug-info: generation"
             msg.user.send(ans)
         self.collection = []
 
     def ask(self, data):
-        host, port = self.amadeus_ip, server.amadeus_port
+        host, port = load_conf.load_amadeus_ip_port()
+        buffer_size = load_conf.load_amadeus_recv_buffer_size()
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((host, port))
         sock.sendall(data.encode())
-        return sock.recv(self.buffer_size).decode()
+        return sock.recv(buffer_size).decode()
+
+    def search(self, text):
+        host, port = load_conf.load_annoy_ip_port()
+        buffer_size = load_conf.load_annoy_recv_buffer_size()
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((host, port))
+        sock.sendall(text.encode())
+        return sock.recv(buffer_size).decode()
+
+    def control(self, text):
+        if text == "system#debug":
+            self.debug = True
+        elif text == "system#normal":
+            self.debug = False
+        elif text == "system#silent":
+            self.silent = True
 
 
 class WxWait(threading.Thread):

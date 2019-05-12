@@ -96,12 +96,25 @@ class AnnoySearch(object):
         self.dic = np.load(Amadeus.ANNOY_DICT).item()
 
     def search(self, query):
-        vec = s2v1(query, self.ws, self.w2v)
+        vec = AnnoySearch.s2v1(query, self.ws, self.w2v)
         similar = self.tree.get_nns_by_vector(vec, 1, include_distances=True)
         similar_id, similar_distance = similar[0][0], similar[1][0]
         similar_query = self.dic_keys[similar_id]
         answers = self.dic[similar_query][1:]
         return similar_query, similar_distance, answers
+
+    @staticmethod
+    def s2v1(line, ws, w2v):
+        words = np.zeros(256, np.float32)
+        # 转换成向量
+        i = 0
+        for word in ws.cut(line.strip()):
+            word_vec = w2v.safe_get(word)
+            # word_id = dic.get(word, [-1, -1])[0]
+            if word_vec is not None:
+                i += 1
+                words += word_vec
+        return words / (i if i > 0 else 1)
 
 
 if __name__ == "__main__":

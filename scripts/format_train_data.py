@@ -28,8 +28,8 @@ def trans_data(inputs, dic, batch_size=131072, debug=False):
     :return:
     """
     w2v = W2V()
-    #ws = Amadeus.brain.wordseg.base_wordseg.JiebaSeg()
-    ws = Amadeus.brain.wordseg.base_wordseg.ZSeg()
+    ws = Amadeus.brain.wordseg.base_wordseg.JiebaSeg()
+    #ws = Amadeus.brain.wordseg.base_wordseg.ZSeg()
     data = {"data": [], "label": []}
     if debug:
         data["debug"] = []
@@ -66,9 +66,9 @@ def trans_data(inputs, dic, batch_size=131072, debug=False):
                     last_sentence = vectors
                     last_line = line
 
-            # 填不满batch的最后几个数据
-            if len(data) > 0:
-                yield data
+    # 填不满batch的最后几个数据
+    if len(data) > 0:
+        yield data
 
 
 if __name__ == "__main__":

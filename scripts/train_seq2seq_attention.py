@@ -81,6 +81,7 @@ def init_func(sess, saver, init, save_path, load=True):
     if load:
         model_file = tf.train.latest_checkpoint(save_path)
         print("\n\n==============load!=================")
+        #model_file = "E:\PySpace\Amadeus\model\model-continue-14145"
         print(model_file)
         saver.restore(sess, model_file)
         print("load Done")
@@ -93,13 +94,13 @@ def main():
     init = tf.global_variables_initializer()
     start, end, pad, uk, max_len = S2S.start, S2S.end, S2S.pad, S2S.uk, S2S.max_step
     inputs = Amadeus.AMADEUS_TRAIN_DATA_DIR
-    batch_size = 32
+    batch_size = 128
     data = load_data(inputs, batch_size, max_len, start, end, pad, uk)
 
     with tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)) as sess:
         lr = 1e-2
-        save_name = "E:/PySpace/Amadeus/model/model"
-        save_path = "E:/PySpace/Amadeus/model/"
+        save_name = "E:/PySpace/Amadeus/model/model-continue"
+        save_path = "E:/PySpace/Amadeus/model_finally/"
         saver = tf.train.Saver(max_to_keep=20)
         init_func(sess, saver, init, save_path, load=False)
         step = 0
@@ -109,19 +110,20 @@ def main():
         for epoch, batch in data:
             ret = S2S.train(sess, batch["e_input"], batch["e_size"],
                             batch["d_input"], batch["d_label"], batch["d_size"],
-                            lr=lr, kp=0.5)
-            loss, _ = ret
+                            lr=lr, kp=0.8)
+            loss, _, des = ret
             epoch_loss += loss
-            if last_epoch != epoch:
+            if last_epoch != epoch and epoch % 200 == 0:
                 print("==========================")
                 print(batch["d_label"][0])
+                print(np.argmax(des[0], axis=1))
                 ret = S2S.predict(sess, batch["e_input"], batch["e_size"])
                 print(ret[0][0][:len(batch["d_label"][0])])
                 print(loss)
                 print(epoch_loss / epoch_step)
                 if epoch_loss / epoch_step < 1.0:
                     lr = 1e-4
-                elif epoch_loss / epoch_step < 4.3:
+                elif epoch_loss / epoch_step < 2.0:
                     lr = 1e-3
                 now = datetime.datetime.now()
                 log = open("E:\\PySpace\\Amadeus\\logs\\log.log", "a")
@@ -138,11 +140,11 @@ def main():
                 epoch_step = 0
                 last_epoch = epoch
 
-            if epoch >= 50:
+            if epoch >= 500000:
                 break
             step += 1
             epoch_step += 1
-            print(step, ":", loss)
+            print(step, epoch, ":", loss)
 
 
 if __name__ == "__main__":
